@@ -1,0 +1,141 @@
+buildscript {
+  repositories {
+    mavenLocal()
+    maven {
+        url 'https://plugins.gradle.org/m2/'
+    }
+    mavenCentral()
+  }
+}
+
+apply plugin: 'java-library'
+apply plugin: 'java-library-distribution'
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+description = 'Client libraries for the Google Street View Publish API'
+group = 'com.google.streetview.publish'
+version = '1.0.0'
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+repositories {
+  mavenCentral()
+  mavenLocal()
+}
+
+compileJava.options.encoding = 'UTF-8'
+javadoc.options.encoding = 'UTF-8'
+
+dependencies {
+  compile 'com.google.api:gax:1.29.0'
+  testCompile 'com.google.api:gax:1.29.0:testlib'
+  compile 'com.google.api:gax-grpc:1.29.0'
+  testCompile 'com.google.api:gax-grpc:1.29.0:testlib'
+  testCompile 'io.grpc:grpc-netty-shaded:1.10.1'
+  testCompile 'junit:junit:4.12'
+  // Remove this line if you are bundling your proto-generated classes together with your client classes
+  compile project(':proto-google-maps-streetview_publish-v1')
+  // Remove this line if you are bundling your proto-generated classes together with your client classes
+  testCompile project(':grpc-google-maps-streetview_publish-v1')
+}
+
+task smokeTest(type: Test) {
+  filter {
+    includeTestsMatching '*SmokeTest'
+    setFailOnNoMatchingTests false
+  }
+}
+
+test {
+  exclude '**/*SmokeTest*'
+}
+
+sourceSets {
+  main {
+    java {
+      srcDir 'src/main/java'
+    }
+  }
+}
+
+clean {
+  delete 'all-jars'
+}
+
+task allJars(type: Copy) {
+  dependsOn test, jar
+  into 'all-jars'
+  // Replace with `from configurations.testRuntime, jar` to include test dependencies
+  from configurations.runtime, jar
+}
+
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allJava
+    classifier = 'sources'
+}
+
+task javadocJar(type: Jar) {
+    from javadoc
+    classifier = 'javadoc'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'java-streetview-publish'
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+            pom {
+                name = 'Client libraries for the Google Street View Publish API'
+                description = project.description
+                url = 'https://github.com/google/streetview-publish-client-libraries'
+                scm {
+                  url = 'https://github.com/google/streetview-publish-client-libraries'
+                  connection = 'scm:git:https://github.com/google/streetview-publish-client-libraries'
+                }
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'streetview-publish-api-tools'
+                        name = 'StreetView Publish Tools'
+                        organization = 'Google LLC'
+                        organizationUrl = 'http://www.google.com/'
+                    }
+                }
+                organization {
+                    name = 'Google LLC'
+                    url = 'http://www.google.com/'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'buildDir'
+            def releasesRepoUrl = '$buildDir/repos/releases'
+            def snapshotsRepoUrl = '$buildDir/repos/snapshots'
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+        }
+        maven {
+            name = 'sonatype'
+            def releasesRepoUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2'
+            def snapshotsRepoUrl = 'https://oss.sonatype.org/content/repositories/snapshots'
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+            credentials {
+                username sonatypeUsername
+                password sonatypePassword
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications
+}
